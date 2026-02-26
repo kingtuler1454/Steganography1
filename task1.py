@@ -9,7 +9,7 @@ import os
 
 
 
-CONTAINER_PATH = 'baboon.tif'
+CONTAINER_PATH = 'goldhill.tif'
 WATERMARK1_PATH = 'ornament.tif'
 WATERMARK2_PATH = 'mickey.tif'
 OUTPUT_PATH = 'output/'

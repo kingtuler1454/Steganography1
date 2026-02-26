@@ -40,10 +40,6 @@ def visualize_extraction(extracted, channel_name, plane, filename):
 
 
 def main():
-    print("=" * 60)
-    print("ЗАДАНИЕ 2: Извлечение информации (14 вариант)")
-    print("=" * 60)
-
     original_container = cv2.imread(CONTAINER_PATH)
     stego_image = cv2.imread(STEGO_PATH)
 
