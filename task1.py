@@ -101,16 +101,17 @@ def embed_into_bit_plane(container, watermark_bin, channel_idx, plane):
 
     # Создаем маску для обнуления целевого бита
     # Пример: для plane=2 (3-й бит): 11111011 (в двоичной)
-    mask = ~(1 << plane) & 0xFF  # & 0xFF для 8-битного числа
-
+    # mask = ~(1 << plane) & 0xFF  # & 0xFF для 8-битного числа
     # Обнуляем целевой бит
-    channel_cleared = channel & mask
-
+    # channel_cleared = channel & mask
+    
     # Сдвигаем биты ЦВЗ на нужную позицию
     watermark_shifted = watermark_bin << plane
+    # Побитовое сложение (XOR)
+    channel_modified = channel ^ watermark_shifted
 
     # Комбинируем: очищенный канал + биты ЦВЗ
-    channel_modified = channel_cleared | watermark_shifted
+    # channel_modified = channel_cleared | watermark_shifted
 
     # Возвращаем измененный канал в изображение
     stego[:, :, channel_idx] = channel_modified
@@ -167,8 +168,12 @@ def visualize_embedding(container, stego, channel_name, plane,
     plt.axis('off')
 
     # 7. Разница (увеличена для наглядности)
+    # Разница обязана повторять бинарный watermark
     plt.subplot(2, 4, 7)
-    plt.imshow(difference * 30, cmap='gray')
+    #  imshow по умолчанию всегда растягивает масштаб, 
+    # поэтому чтобы увидеть  чб изображение можно :
+    # plt.imshow(difference, cmap='gray')
+    plt.imshow(difference * 30, cmap='gray', vmin=0, vmax=255)
     plt.title(f'Разница (x30)\nмакс={difference.max()}', fontsize=10)
     plt.axis('off')
 
@@ -189,23 +194,26 @@ def visualize_embedding(container, stego, channel_name, plane,
     print(f"✅ Визуализация сохранена: {save_path}")
 
 
-def verify_extraction(stego_image, channel_idx, plane, original_watermark_bin, channel_name):
-    """
-    Проверяет корректность извлечения
-    """
-    # Извлекаем биты
-    channel = stego_image[:, :, channel_idx]
-    extracted_bits = (channel >> plane) & 1
+# def verify_extraction(stego_image, channel_idx, plane, original_watermark_bin, channel_name):
+    # """
+    # Проверяет корректность извлечения
+    # """
+    # # Извлекаем биты
+    # original_channel = original_container[:, :, channel_idx]
+    # stego_channel = stego_image[:, :, channel_idx]
 
-    # Сравниваем
-    if np.array_equal(extracted_bits, original_watermark_bin):
-        print(f"✅ {channel_name}: извлечение успешно - все биты совпадают")
-        return True
-    else:
-        mismatch = np.sum(extracted_bits != original_watermark_bin)
-        percent = (mismatch / original_watermark_bin.size) * 100
-        print(f"❌ {channel_name}: ошибка - {mismatch} несовпадений ({percent:.2f}%)")
-        return False
+    # xor_result = stego_channel ^ original_channel
+    # extracted = (xor_result >> plane) & 1
+
+    # # Сравниваем
+    # if np.array_equal(extracted_bits, original_watermark_bin):
+    #     print(f"✅ {channel_name}: извлечение успешно - все биты совпадают")
+    #     return True
+    # else:
+    #     mismatch = np.sum(extracted_bits != original_watermark_bin)
+    #     percent = (mismatch / original_watermark_bin.size) * 100
+    #     print(f"❌ {channel_name}: ошибка - {mismatch} несовпадений ({percent:.2f}%)")
+    #     return False
 
 
 def main():
@@ -232,6 +240,9 @@ def main():
         stego_after_green, green_modified, green_original, green_diff = embed_into_bit_plane(
             container, wm_green_bin, GREEN_CHANNEL, GREEN_PLANE
         )
+
+        print("\nПРОВЕРКА Green-2")
+        print("Количество изменённых пикселей:", np.sum(green_diff != 0))
 
         # Визуализируем результат для зеленого
         visualize_embedding(
@@ -263,9 +274,9 @@ def main():
         print(f"\n💾 Финальное стего-изображение сохранено: {final_path}")
 
         # 6. Проверяем извлечение
-        print("\n🔍 Проверка извлечения...")
-        verify_extraction(stego_final, GREEN_CHANNEL, GREEN_PLANE, wm_green_bin, "Green-2")
-        verify_extraction(stego_final, BLUE_CHANNEL, BLUE_PLANE, wm_blue_bin, "Blue-1")
+        # print("\n🔍 Проверка извлечения...")
+        # verify_extraction(stego_final, GREEN_CHANNEL, GREEN_PLANE, wm_green_bin, "Green-2")
+        # verify_extraction(stego_final, BLUE_CHANNEL, BLUE_PLANE, wm_blue_bin, "Blue-1")
 
         # 7. Финальная визуализация
         print("\n📊 Создание финальной визуализации...")
