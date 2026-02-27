@@ -10,7 +10,8 @@ BLUE_CHANNEL = 0
 GREEN_PLANE = 2
 BLUE_PLANE = 1
 
-CONTAINER_PATH = 'baboon.tif'
+# CONTAINER_PATH = 'baboon.tif'
+CONTAINER_PATH = 'goldhill.tif'
 STEGO_PATH = 'output/stego_task1_14var.png'
 OUTPUT_PATH = 'output/'
 
