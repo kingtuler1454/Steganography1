@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-# Константы
 CONTAINER_PATH = 'goldhill.tif'  # Полутоновое изображение
 OUTPUT_PATH = 'output/'
 TEXT_FILE = 'secret_message.txt'  # Файл с текстом для встраивания
@@ -17,7 +16,7 @@ EXTRACTED_TEXT_FILE = 'extracted_message.txt'  # Извлеченный текс
 
 
 def load_grayscale_image(path):
-    """Загрузка полутонового изображения"""
+    """ Загрузка полутонового изображения """
     img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise FileNotFoundError(f"Файл не найден: {path}")
@@ -31,10 +30,8 @@ def text_to_bits(text):
     Каждый символ -> 8 бит (ASCII)
     Добавляем специальный маркер конца сообщения
     """
-    # Добавляем маркер конца сообщения (4 нулевых байта)
     text_with_end = text + "\0\0\0\0"
 
-    # Преобразуем каждый символ в 8 бит
     bits = []
     for char in text_with_end:
         char_code = ord(char)
@@ -46,28 +43,22 @@ def text_to_bits(text):
 
 
 def bits_to_text(bits):
-    """
-    Преобразование битового вектора обратно в текст
-    """
+    """ Преобразование битового вектора обратно в текст """
     if len(bits) % 8 != 0:
         bits = bits[:len(bits) - len(bits) % 8]
 
-    # Группируем по 8 бит
     chars = []
+
     for i in range(0, len(bits), 8):
-        byte = bits[i:i + 8]
-        char_code = 0
-        for j, bit in enumerate(byte):
-            char_code |= (bit << (7 - j))
+        byte = 0
+        for j in range(8):
+            byte |= bits[i + j] << (7 - j)
 
-        # Проверяем на маркер конца (4 нулевых байта)
-        if char_code == 0 and len(chars) >= 4:
-            # Проверяем последние 4 символа
-            if chars[-3:] == [0, 0, 0]:
-                # Убираем маркер конца
-                return ''.join(chr(c) for c in chars[:-4])
+        chars.append(byte)
 
-        chars.append(char_code)
+        # Проверяем последние 4 байта
+        if len(chars) >= 4 and chars[-4:] == [0, 0, 0, 0]:
+            return ''.join(chr(c) for c in chars[:-4])
 
     return ''.join(chr(c) for c in chars)
 
@@ -85,10 +76,8 @@ def embed_bits_into_lsb(container, bits, start_position=0):
         raise ValueError(f"Недостаточно места в контейнере. Нужно {len(bits)} бит, "
                          f"доступно {len(flat_container) - start_position}")
 
-    # Встраиваем биты методом XOR в НЗБ
     for i, bit in enumerate(bits):
         idx = start_position + i
-        # Инвертируем НЗБ если бит=1, оставляем если бит=0
         flat_container[idx] ^= bit
 
     stego = flat_container.reshape(container.shape).astype(np.uint8)
@@ -103,35 +92,16 @@ def extract_bits_from_lsb(stego, original_container, num_bits):
     flat_stego = stego.flatten()
     flat_original = original_container.flatten()
 
-    # Извлекаем биты через XOR
     xor_result = flat_stego ^ flat_original
-
-    # Берем только НЗБ (последний бит)
     extracted_bits = xor_result & 1
 
     return extracted_bits[:num_bits]
 
 
-def create_text_file(text, filename):
-    """Создание текстового файла с сообщением"""
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(text)
-    print(f"✅ Создан файл: {filename}")
-
-
 def read_text_file(filename):
-    """Чтение текста из файла"""
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            return f.read()
-    except FileNotFoundError:
-        # Если файл не найден, создаем тестовое сообщение
-        default_text = """Это секретное сообщение для встраивания в изображение методом СВИ-2.
-Лабораторная работа по стеганографии.
-14 вариант: встраивание текста в НЗБ полутонового контейнера.
-Дата: 2024"""
-        create_text_file(default_text, filename)
-        return default_text
+    """ Чтение текста из файла """
+    with open(filename, 'r', encoding='ascii') as f:
+        return f.read()
 
 
 def visualize_lsb_embedding(original, stego, text, extracted_text, filename):
@@ -139,29 +109,23 @@ def visualize_lsb_embedding(original, stego, text, extracted_text, filename):
 
     fig, axes = plt.subplots(2, 4, figsize=(16, 10))
 
-    # 1. Оригинал
+
     axes[0, 0].imshow(original, cmap='gray')
     axes[0, 0].set_title('Оригинал (полутоновый)')
     axes[0, 0].axis('off')
-
-    # 2. Стего
     axes[0, 1].imshow(stego, cmap='gray')
     axes[0, 1].set_title('Стего с текстом')
     axes[0, 1].axis('off')
 
-    # 3. Разница
     diff = cv2.absdiff(original, stego)
-    axes[0, 2].imshow(diff * 30, cmap='gray')
+    axes[0, 2].imshow(diff * 255, cmap='gray', vmin=0, vmax=255)
     axes[0, 2].set_title(f'Разница (x30)\nизменено: {np.sum(diff > 0)} пикс.')
     axes[0, 2].axis('off')
 
-    # 4. НЗБ оригинал
     lsb_original = original & 1
     axes[0, 3].imshow(lsb_original * 255, cmap='gray')
     axes[0, 3].set_title('НЗБ оригинала')
     axes[0, 3].axis('off')
-
-    # 5. НЗБ стего
     lsb_stego = stego & 1
     axes[1, 0].imshow(lsb_stego * 255, cmap='gray')
     axes[1, 0].set_title('НЗБ стего')
@@ -176,13 +140,11 @@ def visualize_lsb_embedding(original, stego, text, extracted_text, filename):
     # 7. Текст (оригинал)
     axes[1, 2].text(0.1, 0.9, f'Оригинальный текст:\n{text[:100]}...',
                     fontsize=9, wrap=True, transform=axes[1, 2].transAxes)
-    axes[1, 2].set_title('Встроенное сообщение')
     axes[1, 2].axis('off')
 
     # 8. Текст (извлеченный)
     axes[1, 3].text(0.1, 0.9, f'Извлеченный текст:\n{extracted_text[:100]}...',
                     fontsize=9, wrap=True, transform=axes[1, 3].transAxes)
-    axes[1, 3].set_title('Извлеченное сообщение')
     axes[1, 3].axis('off')
 
     plt.suptitle('СВИ-2: Встраивание текста в НЗБ полутонового изображения', fontsize=14)
@@ -192,26 +154,6 @@ def visualize_lsb_embedding(original, stego, text, extracted_text, filename):
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
     print(f"Визуализация сохранена: {save_path}")
-
-
-def verify_extraction(original_text, extracted_text):
-    """Проверка корректности извлечения"""
-    if original_text == extracted_text:
-        print("✅ Текст извлечен полностью и корректно!")
-        return True
-    else:
-        print("❌ Ошибка: извлеченный текст отличается от оригинала")
-        print(f"Оригинал ({len(original_text)} симв.) vs Извлечено ({len(extracted_text)} симв.)")
-
-        # Поиск места первого различия
-        min_len = min(len(original_text), len(extracted_text))
-        for i in range(min_len):
-            if original_text[i] != extracted_text[i]:
-                print(f"Первое различие на позиции {i}:")
-                print(f"  Оригинал: '{original_text[i - 10:i + 10]}'")
-                print(f"  Извлечено: '{extracted_text[i - 10:i + 10]}'")
-                break
-        return False
 
 
 def calculate_capacity(image_shape):
@@ -229,83 +171,66 @@ def calculate_capacity(image_shape):
 
 
 def main():
-    """Основная функция"""
     print("=" * 60)
     print("СВИ-2: Встраивание текста в НЗБ полутонового изображения")
     print("=" * 60)
 
-    # Создаем папку для результатов
     if not os.path.exists(OUTPUT_PATH):
         os.makedirs(OUTPUT_PATH)
 
     try:
-        # 1. Загружаем полутоновое изображение
-        print("\n📥 Загрузка контейнера...")
+        print("\nЗагрузка контейнера...")
         container = load_grayscale_image(CONTAINER_PATH)
 
-        # 2. Расчет емкости
         capacity = calculate_capacity(container.shape)
-        print(f"\n📊 Емкость контейнера:")
+        print(f"\n Емкость контейнера:")
         print(f"   Пикселей: {capacity['pixels']}")
         print(f"   Битов: {capacity['bits']}")
         print(f"   Байт: {capacity['bytes']}")
         print(f"   Символов (ASCII): {capacity['chars']}")
 
-        # 3. Читаем или создаем текст
-        print("\n📝 Подготовка текстового сообщения...")
+        print("\nПодготовка текстового сообщения...")
         text = read_text_file(os.path.join(OUTPUT_PATH, TEXT_FILE))
         print(f"   Текст длиной {len(text)} символов")
 
-        # 4. Преобразуем текст в биты
         bits = text_to_bits(text)
         print(f"   Битов для встраивания: {len(bits)}")
 
-        # Проверка достаточности места
         if len(bits) > capacity['bits']:
-            print(f"❌ Ошибка: текст слишком длинный!")
+            print(f"Ошибка: текст слишком длинный!")
             print(f"   Нужно бит: {len(bits)}, доступно: {capacity['bits']}")
             return
 
-        # 5. Встраиваем биты
-        print("\n🖊️ Встраивание текста...")
+        print("\nВстраивание текста...")
         stego = embed_bits_into_lsb(container, bits)
 
-        # 6. Сохраняем стего
         stego_path = os.path.join(OUTPUT_PATH, 'stego_text_lsb.png')
         cv2.imwrite(stego_path, stego)
-        print(f"✅ Стего сохранено: {stego_path}")
+        print(f"Стего сохранено: {stego_path}")
 
-        # 7. Извлекаем биты
-        print("\n🔍 Извлечение текста...")
+        print("\nИзвлечение текста...")
         extracted_bits = extract_bits_from_lsb(stego, container, len(bits))
         extracted_text = bits_to_text(extracted_bits)
 
-        # 8. Сохраняем извлеченный текст
         extracted_path = os.path.join(OUTPUT_PATH, EXTRACTED_TEXT_FILE)
         with open(extracted_path, 'w', encoding='utf-8') as f:
             f.write(extracted_text)
-        print(f"✅ Извлеченный текст сохранен: {extracted_path}")
+        print(f"Извлеченный текст сохранен: {extracted_path}")
 
-        # 9. Проверка
-        print("\n🔎 Проверка корректности:")
-        verify_extraction(text, extracted_text)
-
-        # 10. Визуализация
-        print("\n📊 Создание визуализации...")
+        print("\nСоздание визуализации...")
         visualize_lsb_embedding(container, stego, text, extracted_text, 'text_lsb_visualization.png')
 
-        # 11. Дополнительная информация
-        print("\n📈 Статистика:")
+        print("\nСтатистика:")
         diff = cv2.absdiff(container, stego)
         print(
             f"   Изменено пикселей: {np.sum(diff > 0)} из {container.size} ({np.sum(diff > 0) / container.size * 100:.2f}%)")
         print(f"   Среднее изменение: {diff.mean():.2f}")
         print(f"   Макс. изменение: {diff.max()}")
 
-        print("\n🎉 Задание 3 успешно выполнено!")
+        print("\nДоп. задание 2 успешно выполнено!")
 
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        print(f"\nОшибка: {e}")
         import traceback
         traceback.print_exc()
 

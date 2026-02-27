@@ -1,21 +1,16 @@
 # Реализовать встраивание ЦВЗ в указанную в варианте задания битовую плоскость определённого цветового канала пустого контейнера.
 # Визуализировать результат встраивания: как итоговое изображение, так и отдельно изменённый цветовой канал.
 
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-
-
 CONTAINER_PATH = 'goldhill.tif'
+# CONTAINER_PATH = 'baboon.tif'
 WATERMARK1_PATH = 'ornament.tif'
 WATERMARK2_PATH = 'mickey.tif'
 OUTPUT_PATH = 'output/'
-
-
-
 
 
 def load_image(path, grayscale=False):
@@ -27,10 +22,11 @@ def load_image(path, grayscale=False):
 
 
 def prepare_watermark(watermark_path, target_shape):
+    """ Бинаризация знака """
     wm = load_image(watermark_path, grayscale=True)
     watermark_original = wm.copy()
 
-    h, w = target_shape[:2]# Изменяем размер под контейнер
+    h, w = target_shape[:2]  # Изменяем размер под контейнер
     wm_resized = cv2.resize(wm, (w, h), interpolation=cv2.INTER_NEAREST)
 
     _, wm_bin = cv2.threshold(wm_resized, 128, 1, cv2.THRESH_BINARY) # делаем строго бинарным
@@ -41,6 +37,7 @@ def prepare_watermark(watermark_path, target_shape):
 
 
 def embed_into_bit_plane(container, watermark_bin, channel_idx, plane):
+    """ Встраивание знака """
     stego = container.copy()
 
     original_channel = container[:, :, channel_idx].copy()
@@ -60,7 +57,6 @@ def embed_into_bit_plane(container, watermark_bin, channel_idx, plane):
 
 def visualize_embedding(container, stego, channel_name, plane,original_ch, modified_ch, watermark_bin,
                         watermark_original, difference, filename):
-
 
     fig = plt.figure(figsize=(16, 8))
     plt.subplot(2, 4, 1)
@@ -88,7 +84,7 @@ def visualize_embedding(container, stego, channel_name, plane,original_ch, modif
     plt.title('Бинарный ЦВЗ (0/1)', fontsize=10)
     plt.axis('off')
     plt.subplot(2, 4, 7)
-    plt.imshow(difference * 30, cmap='gray')
+    plt.imshow(difference * 30, cmap='gray', vmin=0, vmax=255)
     plt.title(f'Разница (x30)\nмакс={difference.max()}', fontsize=10)
     plt.axis('off')
     plt.subplot(2, 4, 8)
@@ -97,11 +93,9 @@ def visualize_embedding(container, stego, channel_name, plane,original_ch, modif
     plt.title('Гистограмма канала', fontsize=10)
     plt.legend(fontsize=8)
 
-
     save_path = os.path.join(OUTPUT_PATH, filename)
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
-
 
 
 def main():
@@ -113,8 +107,8 @@ def main():
 
         print(" Встраивание в Green-2...")
         stego_after_green, green_modified, green_original, green_diff = embed_into_bit_plane(
-            container, wm_green_bin, 1,2  # Индекс зеленого канала в BGR (0-Blue, 1-Green, 2-Red)
-        )
+            container, wm_green_bin, 1,2)  # Индекс зеленого канала в BGR (0-Blue, 1-Green, 2-Red)
+        
 
         print("\nПРОВЕРКА Green-2")
         print("Количество изменённых пикселей:", np.sum(green_diff != 0))
@@ -123,27 +117,26 @@ def main():
             'Green', 2,
             green_original, green_modified,
             wm_green_bin, wm_green_orig, green_diff,
-            'embedding_green2.png'
-        )
+            'embedding_green2.png')
+        
         print(" Встраивание в Blue-1...")
         stego_final, blue_modified, blue_original, blue_diff = embed_into_bit_plane(
-            stego_after_green, wm_blue_bin, 0, 1
-        )
+            stego_after_green, wm_blue_bin, 0, 1)
+        
         print("Количество изменённых пикселей:", np.sum(blue_diff != 0))
         visualize_embedding(
             stego_after_green, stego_final,
             'Blue', 1,
             blue_original, blue_modified,
             wm_blue_bin, wm_blue_orig, blue_diff,
-            'embedding_blue1.png'
-        )
-
+            'embedding_blue1.png')
+        
         final_path = os.path.join(OUTPUT_PATH, 'stego_task1_14var.png')
         cv2.imwrite(final_path, stego_final)
         print(f"стего-изображение сохранено: {final_path}")
 
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        print(f"\nОшибка: {e}")
         return
 
 
